@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from datetime import datetime
 
 class UserSchema(BaseModel):
     email: str
@@ -15,5 +16,14 @@ class UserUpdate(BaseModel):
     email: str | None = None
     password: str | None = None
 
-class VerificationCode(BaseModel):
-    code: int
+class UserResponse(BaseModel):
+    id: int
+    email: str
+    is_verified: bool
+
+    class Config:
+        from_attributes = True
+
+class VerifyCodeResponse(BaseModel):
+    email: str
+    code: str
