@@ -2,7 +2,7 @@ import os
 import logging
 from datetime import datetime, timedelta
 from fastapi import Depends, HTTPException, status, Request
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
 import jwt
 from sqlalchemy.orm import Session
@@ -11,6 +11,12 @@ from models import UserModel
 from database import engine
 from dotenv import load_dotenv
 from schemas import UserUpdate
+
+from datetime import datetime, timedelta
+import secrets
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 load_dotenv()
 
@@ -46,22 +52,22 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 
         try:
             payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[HASHING_ALGORITHM])
-            username: str = payload.get("sub")
-            if username is None:
+            email: str = payload.get("sub")
+            if email is None:
                 raise credentials_exception
-            user = session.query(UserModel).filter(UserModel.username == username).first()
+            user = session.query(UserModel).filter(UserModel.email == email).first()
             if user is None:
                 raise credentials_exception
         except jwt.PyJWTError:
             raise credentials_exception
 
-        return username
+        return email
 
-async def register_user(user: OAuth2PasswordRequestForm) -> Token:
+async def register_user(user: UserSchema) -> Token:
     with Session(engine) as session:
         try:
 
-            if session.query(UserModel).filter(UserModel.username == user.username).first():
+            if session.query(UserModel).filter(UserModel.email == user.email).first():
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Username already exists"
@@ -69,11 +75,11 @@ async def register_user(user: OAuth2PasswordRequestForm) -> Token:
 
             hashed_password = get_password_hash(user.password)
 
-            user = UserModel(username=user.username, password=hashed_password)
+            user = UserModel(email=user.email, password=hashed_password)
             session.add(user)
             session.commit()
 
-            access_token = create_access_token(data={"sub": str(user.username)})
+            access_token = create_access_token(data={"sub": str(user.email)})
 
             return Token(access_token=access_token, token_type="bearer")
 
@@ -90,10 +96,10 @@ async def register_user(user: OAuth2PasswordRequestForm) -> Token:
                 detail="An unexpected error occurred"
             )
 
-async def login_user(user: OAuth2PasswordRequestForm = Depends()) -> Token:
+async def login_user(user: UserSchema = Depends()) -> Token:
     with Session(engine) as session:
         try:
-            queryUser = session.query(UserModel).filter(UserModel.username == user.username).first()
+            queryUser = session.query(UserModel).filter(UserModel.email == user.email).first()
 
             if queryUser is None:
                 raise HTTPException(
@@ -109,7 +115,7 @@ async def login_user(user: OAuth2PasswordRequestForm = Depends()) -> Token:
                     headers={"WWW-Authenticate": "Bearer"},
                 )
 
-            access_token = create_access_token(data={"sub": str(user.username)})
+            access_token = create_access_token(data={"sub": str(user.email)})
 
             return Token(access_token=access_token, token_type="bearer")
 
@@ -126,7 +132,7 @@ async def login_user(user: OAuth2PasswordRequestForm = Depends()) -> Token:
 async def get_user_data(token: str) -> UserSchema:
     with Session(engine) as session:
         try:
-            user = session.query(UserModel).filter(UserModel.username == token).first()
+            user = session.query(UserModel).filter(UserModel.email == token).first()
 
             if user is None:
                 raise HTTPException(
@@ -135,7 +141,7 @@ async def get_user_data(token: str) -> UserSchema:
                 )
 
             return UserSchema(
-                username=user.username,
+                email=user.email,
                 password=user.password
             )
 
@@ -149,24 +155,24 @@ async def get_user_data(token: str) -> UserSchema:
                 detail="An unexpected error occurred while fetching user data"
             )
 
-async def update_user_data(username: str, user_update: UserUpdate) -> UserSchema:
+async def update_user_data(email: str, user_update: UserUpdate) -> UserSchema:
     try:
         with Session(engine) as session:
-            user = session.query(UserModel).filter(UserModel.username == username).first()
+            user = session.query(UserModel).filter(UserModel.email == email).first()
             if not user:
                 raise HTTPException(
                     status_code=404,
                     detail="User not found"
                 )
 
-            if user_update.username:
-                existing_user = session.query(UserModel).filter(UserModel.username == user_update.username).first()
+            if user_update.email:
+                existing_user = session.query(UserModel).filter(UserModel.email == user_update.email).first()
                 if existing_user and existing_user.id != user.id:
                     raise HTTPException(
                         status_code=400,
-                        detail="Username already taken"
+                        detail="Email already taken"
                     )
-                user.username = user_update.username
+                user.email = user_update.email
 
             if user_update.password:
                 user.password = get_password_hash(user_update.password)
@@ -175,7 +181,7 @@ async def update_user_data(username: str, user_update: UserUpdate) -> UserSchema
             session.refresh(user)
 
             updated_user = UserSchema(
-                username=user.username,
+                email=user.email,
                 password="**********"
             )
 
@@ -187,5 +193,3 @@ async def update_user_data(username: str, user_update: UserUpdate) -> UserSchema
     except Exception as e:
         logger.error(f"Unexpected error during user update: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="An unexpected error occurred")
-
-

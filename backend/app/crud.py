@@ -38,10 +38,10 @@ async def delete_all_users():
             headers={"WWW-Authenticate": "Bearer"}
         )
 
-async def fetch_user(username: str):
+async def fetch_user(email: str):
     try:
         with Session(engine) as session:
-            user = session.query(UserModel).filter(UserModel.username == username).first()
+            user = session.query(UserModel).filter(UserModel.email == email).first()
             if user:
                 return user
             else:
@@ -58,10 +58,10 @@ async def fetch_user(username: str):
             headers={"WWW-Authenticate": "Bearer"}
         )
 
-async def delete_user(username: str):
+async def delete_user(email: str):
     try:
         with Session(engine) as session:
-            user = session.query(UserModel).filter(UserModel.username == username).first()
+            user = session.query(UserModel).filter(UserModel.email == email).first()
             if user:
                 session.delete(user)
                 session.commit()
@@ -83,7 +83,7 @@ async def create_new_user(user_data: OAuth2PasswordRequestForm = Depends()):
     try:
         with Session(engine) as session:
 
-            if session.query(UserModel).filter(UserModel.username == user_data.username).first():
+            if session.query(UserModel).filter(UserModel.email == user_data.username).first():
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Username already exists"
@@ -91,7 +91,7 @@ async def create_new_user(user_data: OAuth2PasswordRequestForm = Depends()):
 
             hashed_password = get_password_hash(user_data.password)
 
-            user = UserModel(username=user_data.username, password=hashed_password)
+            user = UserModel(email=user_data.username, password=hashed_password)
             session.add(user)
             session.commit()
 

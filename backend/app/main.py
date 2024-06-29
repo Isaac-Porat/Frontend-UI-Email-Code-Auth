@@ -74,14 +74,14 @@ async def create_user(user: OAuth2PasswordRequestForm = Depends(), token: str = 
     user = await create_new_user(user)
     return user
 
-@app.get("/fetch/user/{username}")
-async def fetch_single_user(username: str, token: str = Depends(get_current_admin_user)):
-    user = await fetch_user(username)
+@app.get("/fetch/user/{email}")
+async def fetch_single_user(email: str, token: str = Depends(get_current_admin_user)):
+    user = await fetch_user(email)
     return user
 
-@app.get("/delete/user/{username}")
-async def delete_single_user(username: str, token: str = Depends(get_current_admin_user)):
-    user = await delete_user(username)
+@app.get("/delete/user/{email}")
+async def delete_single_user(email: str, token: str = Depends(get_current_admin_user)):
+    user = await delete_user(email)
     return user
 
 @app.get("/get-user-data")

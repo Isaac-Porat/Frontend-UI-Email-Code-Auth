@@ -11,16 +11,16 @@ load_dotenv()
 
 logger = logging.getLogger("uvicorn")
 
-ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
 async def create_admin():
   try:
     with Session(engine) as session:
-      if session.query(UserModel).filter(UserModel.username == ADMIN_USERNAME, UserModel.is_admin == True).first():
+      if session.query(UserModel).filter(UserModel.email == ADMIN_EMAIL, UserModel.is_admin == True).first():
         return {"status": "success", "message": "Admin user already exists"}, 200
 
-      admin_user = UserModel(username=ADMIN_USERNAME, password=get_password_hash(ADMIN_PASSWORD), is_admin=True)
+      admin_user = UserModel(email=ADMIN_EMAIL, password=get_password_hash(ADMIN_PASSWORD), is_admin=True)
       if admin_user:
         session.add(admin_user)
         session.commit()
@@ -33,11 +33,10 @@ async def create_admin():
       detail="Unexpected error while creating admin user.",
       headers={"WWW-Authenticate": "Bearer"}
     )
-
 async def get_current_admin_user(token: str = Depends(get_current_user)):
-  adminUsername = token
+  adminEmail = token
 
-  if adminUsername != ADMIN_USERNAME:
+  if adminEmail != ADMIN_EMAIL:
     raise HTTPException(
       status_code=status.HTTP_401_UNAUTHORIZED,
       detail="Unauthorized access attempt by non-admin user",
@@ -46,7 +45,7 @@ async def get_current_admin_user(token: str = Depends(get_current_user)):
 
   try:
     with Session(engine) as session:
-      admin_user = session.query(UserModel).filter(UserModel.username == adminUsername, UserModel.is_admin == True).first()
+      admin_user = session.query(UserModel).filter(UserModel.email == adminEmail, UserModel.is_admin == True).first()
       if not admin_user:
         raise HTTPException(
           status_code=status.HTTP_401_UNAUTHORIZED,
@@ -54,7 +53,7 @@ async def get_current_admin_user(token: str = Depends(get_current_user)):
           headers={"WWW-Authenticate": "Bearer"},
         )
 
-      return adminUsername
+      return adminEmail
 
   except Exception as e:
     logger.error(f"Unexpected error while creating admin user: {e}", exc_info=True)

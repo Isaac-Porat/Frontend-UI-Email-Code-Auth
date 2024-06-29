@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 
 class UserSchema(BaseModel):
-    username: str
+    email: str
     password: str
 
 class UserIdResponse(BaseModel):
@@ -12,8 +12,8 @@ class Token(BaseModel):
     token_type: str
 
 class UserUpdate(BaseModel):
-    username: str | None = None
+    email: str | None = None
     password: str | None = None
 
-# class VerificationCode(BaseModel):
-#     code: int
+class VerificationCode(BaseModel):
+    code: int
