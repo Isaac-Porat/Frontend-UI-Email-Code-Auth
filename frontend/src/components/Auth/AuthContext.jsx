@@ -6,21 +6,28 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [verificationEmail, setVerificationEmail] = useState('');
+
+  const api = axios.create({
+    baseURL: 'http://localhost:8000',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
 
   const fetchUserDetails = useCallback(async (token) => {
     try {
-      const response = await axios.get('http://localhost:8000/get-user-data', {
+      const response = await api.get('/get-user-data', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const userData = { ...response.data, token };
-      setUser(userData);
-      setLoading(false);
-      return userData;
+      setUser({ ...response.data, token });
+      return response.data;
     } catch (error) {
       console.error('Error fetching user details:', error);
       logout();
-      setLoading(false);
       return null;
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -36,49 +43,39 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (credentials) => {
     try {
-      const formData = new FormData();
-      Object.entries(credentials).forEach(([key, value]) => {
-        formData.append(key, value);
-      });
-      const response = await axios.post('http://localhost:8000/login', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await api.post('/login', JSON.stringify(credentials));
       const { access_token } = response.data;
       localStorage.setItem('accessToken', access_token);
-
       const userData = await fetchUserDetails(access_token);
       return !!userData;
-
     } catch (error) {
       console.error('Login error:', error);
-      if (error.response && error.response.status === 401) {
-        throw new Error("Incorrect username or password");
-      } else {
-        throw new Error("An unexpected error occurred. Please try again later.");
-      }
+      return false;
     }
   };
 
-  const signup = async (userData) => {
+  const register = async (userData) => {
     try {
-      const formData = new FormData();
-      Object.entries(userData).forEach(([key, value]) => {
-        formData.append(key, value);
-      });
-      const response = await axios.post('http://localhost:8000/register', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      await api.post('/register', JSON.stringify(userData));
+      console.log(userData)
+      setVerificationEmail(userData.email);
+      return true;
+    } catch (error) {
+      console.error('Registration error:', error);
+      return false;
+    }
+  };
+
+  const verifyEmail = async (verificationData) => {
+    try {
+      const response = await api.post('/verify', verificationData);
       const { access_token } = response.data;
       localStorage.setItem('accessToken', access_token);
-
-      const fetchedUserData = await fetchUserDetails(access_token);
-      return !!fetchedUserData;
+      const userData = await fetchUserDetails(access_token);
+      setVerificationEmail('');
+      return !!userData;
     } catch (error) {
-      console.error('Signup error:', error);
+      console.error('Email verification error:', error);
       return false;
     }
   };
@@ -102,20 +99,22 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-
   const logout = useCallback(() => {
     localStorage.removeItem('accessToken');
     setUser(null);
+    setVerificationEmail('');
   }, []);
 
   const value = {
     user,
     login,
-    signup,
+    register,
+    verifyEmail,
     logout,
     loading,
+    verificationEmail,
+    updateUserData,
     refreshUserData: fetchUserDetails,
-    updateUserData
   };
 
   return (
