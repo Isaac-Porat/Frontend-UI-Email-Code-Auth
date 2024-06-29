@@ -12,7 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "../ui/use-toast"
 
 const formSchema = z.object({
-  username: z.string().min(4, {
+  email: z.string().email({
     message: "Username must be at least 4 characters.",
   }),
   password: z.string().min(4, {
@@ -29,7 +29,7 @@ const Dashboard = () => {
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      username: user?.username || "",
+      email: user?.email || "",
       password: "",
     },
   });
@@ -38,7 +38,7 @@ const Dashboard = () => {
     if (user) {
       setLocalUser(user);
       form.reset({
-        username: user.username,
+        email: user.email,
         password: "",
       });
     }
@@ -52,13 +52,13 @@ const Dashboard = () => {
     try {
       const updatedUser = await updateUserData(data);
 
-      if (updatedUser && updatedUser.username) {
+      if (updatedUser && updatedUser.email) {
         setLocalUser(prevUser => ({
           ...prevUser,
-          username: updatedUser.username
+          email: updatedUser.email
         }));
         form.reset({
-          username: updatedUser.username,
+          email: updatedUser.email,
           password: "",
         });
       } else {
@@ -84,22 +84,22 @@ const Dashboard = () => {
       <Card className="w-[350px] mx-auto">
         <CardHeader>
           <CardTitle>User Dashboard</CardTitle>
-          <CardDescription>Welcome, {localUser.username}!</CardDescription>
+          <CardDescription>Welcome, {localUser.email}!</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Avatar className="w-24 h-24 mx-auto">
-            <AvatarImage src="/api/placeholder/200/200" alt={localUser.username} />
-            <AvatarFallback>{localUser.username.charAt(0).toUpperCase()}</AvatarFallback>
+            <AvatarImage src="/api/placeholder/200/200" alt={localUser.email} />
+            <AvatarFallback>{localUser.email ? localUser.email.charAt(0).toUpperCase() : 'U'}</AvatarFallback>
           </Avatar>
           {isEditing ? (
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
                   control={form.control}
-                  name="username"
+                  name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Username</FormLabel>
+                      <FormLabel>Email</FormLabel>
                       <FormControl>
                         <Input {...field} />
                       </FormControl>
@@ -126,7 +126,7 @@ const Dashboard = () => {
             </Form>
           ) : (
             <div className="space-y-2">
-              <p><strong>Username:</strong> {localUser.username}</p>
+              <p><strong>Username:</strong> {localUser.email}</p>
               <p><strong>Password:</strong> ••••••••</p>
               <Button className="w-full" onClick={() => setIsEditing(true)}>Edit Account Settings</Button>
             </div>
