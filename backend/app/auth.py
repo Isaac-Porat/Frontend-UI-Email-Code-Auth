@@ -7,7 +7,7 @@ from passlib.context import CryptContext
 import jwt
 from sqlalchemy.orm import Session
 from schemas import Token, UserSchema
-from models import UserModel
+from models import UserModel, VerificationCodeModel
 from database import engine
 from dotenv import load_dotenv
 from schemas import UserUpdate
@@ -25,6 +25,9 @@ logger = logging.getLogger("uvicorn")
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 HASHING_ALGORITHM = os.getenv("HASHING_ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINUTES = os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES")
+
+EMAIL_USER = os.getenv("EMAIL_USER")
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
 
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -63,7 +66,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 
         return email
 
-async def register_user(user: UserSchema) -> Token:
+async def register_user(user: UserSchema):
+
     with Session(engine) as session:
         try:
 
@@ -78,10 +82,18 @@ async def register_user(user: UserSchema) -> Token:
             user = UserModel(email=user.email, password=hashed_password)
             session.add(user)
             session.commit()
+            session.refresh(user)
 
-            access_token = create_access_token(data={"sub": str(user.email)})
+            verification_code = secrets.token_hex(3)
+            expiration_time = datetime.utcnow() + timedelta(minutes=15)
 
-            return Token(access_token=access_token, token_type="bearer")
+            new_code = VerificationCodeModel(user_id=user.id, code=verification_code, expires_at=expiration_time)
+            session.add(new_code)
+            session.commit()
+
+            send_verification_email(user.email, verification_code)
+
+            return {"message": "User registered. Please check your email for the verification code."}
 
         except HTTPException as e:
             raise HTTPException(
@@ -186,6 +198,72 @@ async def update_user_data(email: str, user_update: UserUpdate) -> UserSchema:
             )
 
             return {"message": "User updated successfully", "user": updated_user}
+
+    except HTTPException as e:
+        raise e
+
+    except Exception as e:
+        logger.error(f"Unexpected error during user update: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An unexpected error occurred")
+
+def send_verification_email(email: str, code: str):
+    smtp_server = "smtp.gmail.com"
+    port = 587  # For starttls
+    sender_email = EMAIL_USER
+    password = EMAIL_PASSWORD
+
+    message = MIMEMultipart("alternative")
+    message["Subject"] = "Your Verification Code"
+    message["From"] = sender_email
+    message["To"] = email
+
+    text = f"Your verification code is: {code}"
+    html = f"""\
+    <html>
+      <body>
+        <p>Your verification code is: <strong>{code}</strong></p>
+      </body>
+    </html>
+    """
+
+    part1 = MIMEText(text, "plain")
+    part2 = MIMEText(html, "html")
+
+    message.attach(part1)
+    message.attach(part2)
+
+    try:
+        with smtplib.SMTP(smtp_server, port) as server:
+            server.starttls()
+            server.login(sender_email, password)
+            server.sendmail(sender_email, email, message.as_string())
+        logger.warning(f"Verification email sent to {email}")
+    except Exception as e:
+        logger.warning(f"Error sending email: {str(e)}")
+        raise
+
+async def verify(email: str, code: str):
+    try:
+        with Session(engine) as session:
+            user = session.query(UserModel).filter(UserModel.email == email).first()
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+
+            verification = session.query(VerificationCodeModel).filter(
+                VerificationCodeModel.user_id == user.id,
+                VerificationCodeModel.code == code,
+                VerificationCodeModel.expires_at > datetime.utcnow()
+            ).first()
+
+            if not verification:
+                raise HTTPException(status_code=400, detail="Invalid or expired verification code")
+
+            user.is_verified = True
+            session.delete(verification)
+            session.commit()
+
+            access_token = create_access_token(data={"sub": user.email})
+            return {"access_token": access_token, "token_type": "bearer"}
 
     except HTTPException as e:
         raise e
