@@ -46,7 +46,7 @@ async def register_user(user: UserSchema):
 
             send_verification_email(user.email, verification_code)
 
-            return {"message": "User registered. Please check your email for the verification code."}
+            return {"status": 201, "message": "Please check your email for the verification code."}
 
         except HTTPException as e:
             raise HTTPException(
@@ -93,7 +93,7 @@ async def verify_verification_code(data: VerifyCodeResponse) -> Token:
         raise HTTPException(status_code=500, detail="An unexpected error occurred")
 
 @router.post('/login', response_model=Token)
-async def login_user(user: UserSchema = Depends()) -> Token:
+async def login_user(user: UserSchema) -> Token:
     with Session(engine) as session:
         try:
             queryUser = session.query(UserModel).filter(UserModel.email == user.email).first()
