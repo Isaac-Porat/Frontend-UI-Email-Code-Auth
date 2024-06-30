@@ -9,7 +9,7 @@ export const AuthProvider = ({ children }) => {
   const [verificationEmail, setVerificationEmail] = useState('');
 
   const api = axios.create({
-    baseURL: 'http://localhost:8000',
+    baseURL: 'http://localhost:8000/api/auth',
     headers: {
       'Content-Type': 'application/json',
     },
@@ -47,19 +47,28 @@ export const AuthProvider = ({ children }) => {
       const { access_token } = response.data;
       localStorage.setItem('accessToken', access_token);
       const userData = await fetchUserDetails(access_token);
-      return !!userData;
+      return {
+        success: !!userData,
+        statusCode: response.status
+      };
     } catch (error) {
       console.error('Login error:', error);
-      return false;
+      return {
+        success: false,
+        statusCode: error.response ? error.response.status : 500
+      };
     }
   };
 
-  const register = async (userData) => {
+  const register = async (credentials) => {
     try {
-      await api.post('/register', JSON.stringify(userData));
-      console.log(userData)
-      setVerificationEmail(userData.email);
-      return true;
+      const response = await api.post('/register', JSON.stringify(credentials));
+      setVerificationEmail(credentials.email);
+
+      return {
+        statusCode: response.status,
+        statusMessage: response.message
+      }
     } catch (error) {
       console.error('Registration error:', error);
       return false;
@@ -68,7 +77,7 @@ export const AuthProvider = ({ children }) => {
 
   const verifyEmail = async (verificationData) => {
     try {
-      const response = await api.post('/verify', verificationData);
+      const response = await api.post('/verify-verification-code', verificationData);
       const { access_token } = response.data;
       localStorage.setItem('accessToken', access_token);
       const userData = await fetchUserDetails(access_token);
@@ -82,7 +91,7 @@ export const AuthProvider = ({ children }) => {
 
   const updateUserData = async (userData) => {
     try {
-      const response = await axios.put('http://localhost:8000/update-user', userData, {
+      const response = await axios.put('/update-user', userData, {
         headers: { Authorization: `Bearer ${user.token}` }
       });
       const updatedUserData = response.data.username;
