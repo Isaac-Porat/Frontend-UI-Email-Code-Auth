@@ -69,8 +69,8 @@ async def get_current_admin_user(token: str = Depends(get_current_user)):
       headers={"WWW-Authenticate": "Bearer"}
     )
 
-@router.get('/fetch-users')
-async def fetch_all_user(token: str = Depends(get_current_admin_user)):
+@router.get('/fetch-users-data')
+async def fetch_users_data(token: str = Depends(get_current_admin_user)):
     try:
         with Session(engine) as session:
             users = session.query(UserModel).all()
@@ -84,7 +84,7 @@ async def fetch_all_user(token: str = Depends(get_current_admin_user)):
             headers={"WWW-Authenticate": "Bearer"}
         )
 
-@router.get('/delete-users')
+@router.get('/delete-all-users')
 async def delete_all_users(token: str = Depends(get_current_admin_user)):
     try:
         with Session(engine) as session:
@@ -101,8 +101,8 @@ async def delete_all_users(token: str = Depends(get_current_admin_user)):
             headers={"WWW-Authenticate": "Bearer"}
         )
 
-@router.get('/fetch-user/{email}')
-async def fetch_user(email: str, token: str = Depends(get_current_admin_user)):
+@router.get('/fetch-user-data/{email}')
+async def fetch_user_data(email: str, token: str = Depends(get_current_admin_user)):
     try:
         with Session(engine) as session:
             user = session.query(UserModel).filter(UserModel.email == email).first()
