@@ -1,15 +1,14 @@
 import logging
 from datetime import datetime, timedelta
+import secrets
+from dotenv import load_dotenv
+from sqlalchemy.orm import Session
 from fastapi import Depends, HTTPException, status, APIRouter
 from passlib.context import CryptContext
-from sqlalchemy.orm import Session
 from models import UserModel, VerificationCodeModel
 from database import engine
-from dotenv import load_dotenv
 from schemas import UserUpdate, UserSchema, VerifyCodeResponse, Token
 from auth_utils import get_password_hash, create_access_token, send_verification_email, get_current_user
-from datetime import datetime, timedelta
-import secrets
 
 load_dotenv()
 

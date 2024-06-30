@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 from models import UserModel
 from database import engine
 from dotenv import load_dotenv
-
 from datetime import datetime, timedelta
 import smtplib
 from email.mime.text import MIMEText
