@@ -2,16 +2,18 @@ import logging
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from schemas import Token, UserUpdate, UserSchema, VerifyCodeResponse
-from auth import login_user, register_user, get_current_user, get_user_data, update_user_data, verify
 from admin import get_current_admin_user, create_admin
 from crud import fetch_all_user, delete_all_users, create_new_user, fetch_user, delete_user
 import models
 from database import engine
 import uvicorn
+from auth import router as auth_router
 
 logger = logging.getLogger("uvicorn")
 
 app = FastAPI()
+
+app.include_router(auth_router, prefix="/api/auth", tags=["authentication"])
 
 models.Base.metadata.drop_all(bind=engine)
 models.Base.metadata.create_all(bind=engine)
@@ -30,24 +32,6 @@ if environment == "dev":
 @app.get('/')
 def index():
     return {"message": "Hello world!"}
-
-@app.post("/login", response_model=Token)
-async def login(user: UserSchema) -> Token:
-    access_token = await login_user(user)
-    return access_token
-
-@app.post("/register")
-async def register(user: UserSchema):
-    return await register_user(user)
-
-@app.post("/token", response_model=Token)
-async def token(user: UserSchema) -> Token:
-    access_token = await login_user(user)
-    return access_token
-
-@app.get('/users/me')
-async def get_current_active_user(token: str = Depends(get_current_user)):
-    return token
 
 @app.get('/create-admin-user')
 async def create_admin_user():
@@ -82,21 +66,6 @@ async def fetch_single_user(email: str, token: str = Depends(get_current_admin_u
 async def delete_single_user(email: str, token: str = Depends(get_current_admin_user)):
     user = await delete_user(email)
     return user
-
-@app.get("/get-user-data")
-async def get_data(token: str = Depends(get_current_user)):
-    user = await get_user_data(token)
-    return user
-
-@app.put("/update-user")
-async def update_user(user_update: UserUpdate, token: str = Depends(get_current_user)):
-    updated_user = await update_user_data(token, user_update)
-    return updated_user
-
-@app.post("/verify")
-async def verify_user(data: VerifyCodeResponse):
-    token = await verify(data.email, data.code)
-    return token
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
