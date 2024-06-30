@@ -17,11 +17,10 @@ const registerSchema = z.object({
 
 const Auth = () => {
   const [isRegistering, setIsRegistering] = useState(true);
-  const [isVerifying, setIsVerifying] = useState(false);
   const navigate = useNavigate();
   const { login, register, verificationEmail } = useAuth();
 
-  const registerForm = useForm({
+  const form = useForm({
     resolver: zodResolver(registerSchema),
     defaultValues: {
       email: "",
@@ -29,27 +28,48 @@ const Auth = () => {
     },
   });
 
-  useEffect(() => {
-    if (verificationEmail) {
-      setIsVerifying(true);
-    }
-  }, [verificationEmail]);
-
-  const onRegisterSubmit = async (data) => {
-    const success = await register(data);
-    if (success) {
-      setIsVerifying(true);
+  const onSubmit = async (data) => {
+    if (isRegistering) {
+      try { // register route
+        const { statusCode, statusMessage } = await register(data);
+        if (statusCode === 201) {
+          form.reset();
+        } else {
+          form.setError('root', {
+            type: 'manual',
+            message: statusMessage || "Registration failed. Please try again."
+          });
+        }
+      } catch (error) {
+        form.setError('root', {
+          type: 'manual',
+          message: error.message || "An error occurred during registration."
+        });
+      }
     } else {
-      console.error('Registration failed');
-    }
-  };
-
-  const onLoginSubmit = async (data) => {
-    const success = await login(data);
-    if (success) {
-      navigate('/');
-    } else {
-      console.error('Login failed');
+      try { // login route
+        const { success, statusCode } = await login(data);
+        if (success) {
+          navigate('/');
+        } else {
+          if (statusCode === 401) {
+            form.setError('root', {
+              type: 'manual',
+              message: "Invalid email or password."
+            });
+          } else {
+            form.setError('root', {
+              type: 'manual',
+              message: `Login failed with status code ${statusCode}. Please try again.`
+            });
+          }
+        }
+      } catch (error) {
+        form.setError('root', {
+          type: 'manual',
+          message: error.message || "An error occurred during login."
+        });
+      }
     }
   };
 
@@ -58,19 +78,19 @@ const Auth = () => {
       <div className="max-w-md w-full mx-auto">
         <Card>
           <CardHeader>
-            <CardTitle>{isVerifying ? "Verify Email" : (isRegistering ? "Register" : "Login")}</CardTitle>
+            <CardTitle>{verificationEmail ? "Verify Email" : (isRegistering ? "Register" : "Login")}</CardTitle>
             <CardDescription>
-              {isVerifying ? "Enter the verification code sent to your email" : (isRegistering ? "Create a new account" : "Login to your account")}
+              {verificationEmail ? "Enter the verification code sent to your email" : (isRegistering ? "Create a new account" : "Login to your account")}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {isVerifying ? (
+            {verificationEmail ? (
               <VerifyEmail />
             ) : (
-              <Form {...registerForm}>
-                <form onSubmit={registerForm.handleSubmit(isRegistering ? onRegisterSubmit : onLoginSubmit)} className="space-y-4">
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                   <FormField
-                    control={registerForm.control}
+                    control={form.control}
                     name="email"
                     render={({ field }) => (
                       <FormItem>
@@ -83,7 +103,7 @@ const Auth = () => {
                     )}
                   />
                   <FormField
-                    control={registerForm.control}
+                    control={form.control}
                     name="password"
                     render={({ field }) => (
                       <FormItem>
@@ -94,25 +114,29 @@ const Auth = () => {
                             type="password"
                             placeholder="Enter your password"
                             autoComplete="new-password"
-                            onChange={(e) => field.onChange(e.target.value)}
                           />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+                  <FormMessage>{form.formState.errors.root?.message}</FormMessage>
                   <Button type="submit" className="w-full">
                     {isRegistering ? "Register" : "Login"}
                   </Button>
                 </form>
               </Form>
             )}
-            {!isVerifying && (
+            {!verificationEmail && (
               <p className="mt-4 text-center">
                 {isRegistering ? "Already have an account? " : "Don't have an account? "}
                 <button
                   className="text-blue-500 hover:underline"
-                  onClick={() => setIsRegistering(!isRegistering)}
+                  onClick={() => {
+                    setIsRegistering(!isRegistering);
+                    form.clearErrors();
+                    form.reset();
+                  }}
                 >
                   {isRegistering ? "Login" : "Register"}
                 </button>
