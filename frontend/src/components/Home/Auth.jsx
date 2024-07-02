@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,6 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Auth/AuthContext';
 import VerifyEmail from '../Auth/VerifyEmail';
+import ForgotPassword from '../Auth/ForgotPassword';
 
 const registerSchema = z.object({
   email: z.string().email({ message: "Invalid email address" }),
@@ -19,6 +20,7 @@ const Auth = () => {
   const [isRegistering, setIsRegistering] = useState(true);
   const navigate = useNavigate();
   const { login, register, verificationEmail } = useAuth();
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(registerSchema),
@@ -73,6 +75,10 @@ const Auth = () => {
     }
   };
 
+  if (showForgotPassword) {
+    return <ForgotPassword onBack={() => setShowForgotPassword(false)} />;
+  }
+
   return (
     <div className="min-h-screen flex flex-col justify-center py-12">
       <div className="max-w-md w-full mx-auto">
@@ -126,6 +132,17 @@ const Auth = () => {
                   </Button>
                 </form>
               </Form>
+            )}
+            {!isRegistering && (
+              <p className='mt-2 text-left text-sm'>
+                Forgot your password?{' '}
+                <button
+                  className='text-blue-500 underline hover:text-blue-700'
+                  onClick={() => setShowForgotPassword(true)}
+                >
+                  Reset it here
+                </button>
+              </p>
             )}
             {!verificationEmail && (
               <p className="mt-4 text-center">
