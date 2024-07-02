@@ -72,10 +72,10 @@ def send_verification_email(email: str, code: str):
             server.starttls()
             server.login(sender_email, password)
             server.sendmail(sender_email, email, message.as_string())
-        logger.warning(f"Verification email sent to {email}")
+            return {"status": 200, "message": "Verification email sent successfully"}
     except Exception as e:
         logger.warning(f"Error sending email: {str(e)}")
-        raise
+        return {"status": 500, "message": "Error sending verification email"}
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     with Session(engine) as session:
