@@ -6,7 +6,7 @@ from fastapi import Depends, HTTPException, status, APIRouter
 from auth import get_current_user, get_password_hash
 from database import engine
 from models import UserModel
-from schemas import UserSchema
+from schemas import UserSchema, HTTPRequest
 
 load_dotenv()
 
@@ -22,14 +22,21 @@ async def create_admin():
   try:
     with Session(engine) as session:
       if session.query(UserModel).filter(UserModel.email == ADMIN_EMAIL, UserModel.is_admin == True).first():
-        return {"status": "success", "message": "Admin user already exists"}, 200
+        return HTTPRequest(
+           status=200,
+           message="Admin user already exists"
+        )
 
       admin_user = UserModel(email=ADMIN_EMAIL, password=get_password_hash(ADMIN_PASSWORD), is_admin=True)
       if admin_user:
         session.add(admin_user)
         session.commit()
 
-        return {"status": "success", "message": "Admin user created successfully"}, 200
+        return HTTPRequest(
+           status=201,
+           message="Admin user created successfully"
+        )
+
   except Exception as e:
     logger.error(f"Unexpected error while creating admin user: {e}", exc_info=True)
     raise HTTPException(
@@ -59,7 +66,10 @@ async def get_current_admin_user(token: str = Depends(get_current_user)):
           headers={"WWW-Authenticate": "Bearer"},
         )
 
-      return adminEmail
+      return HTTPRequest(
+         status=200,
+         message=adminEmail
+      )
 
   except Exception as e:
     logger.error(f"Unexpected error while creating admin user: {e}", exc_info=True)
@@ -74,7 +84,11 @@ async def fetch_users_data(token: str = Depends(get_current_admin_user)):
     try:
         with Session(engine) as session:
             users = session.query(UserModel).all()
-            return users
+
+            return HTTPRequest(
+               status=200,
+               message=users
+            )
 
     except Exception as e:
         logger.error(f"Unexpected error while fetching all users: {e}", exc_info=True)
@@ -92,7 +106,10 @@ async def delete_all_users(token: str = Depends(get_current_admin_user)):
             session.commit()
 
             if deleted_count == 0:
-                return {"message": "No users to delete"}
+                return HTTPRequest(
+                   status=404,
+                   message='No users to delete'
+                )
     except Exception as e:
         logger.error(f"Unexpected error while deleting all users: {e}", exc_info=True)
         raise HTTPException(
@@ -107,7 +124,10 @@ async def fetch_user_data(email: str, token: str = Depends(get_current_admin_use
         with Session(engine) as session:
             user = session.query(UserModel).filter(UserModel.email == email).first()
             if user:
-                return user
+                return HTTPRequest(
+                   status=200,
+                   message=user
+                )
             else:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
@@ -130,11 +150,16 @@ async def delete_user(email: str, token: str = Depends(get_current_admin_user)):
             if user:
                 session.delete(user)
                 session.commit()
-                return {"message": "User deleted successfully"}
+
+                return HTTPRequest(
+                   status=201,
+                   message="User deleted successfully"
+                )
+
             else:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail="User not found."
+                    detail='User not found.'
                 )
     except Exception as e:
         logger.error(f"Unexpected error while deleting user: {e}", exc_info=True)
@@ -161,7 +186,10 @@ async def create_new_user(data: UserSchema, token: str = Depends(get_current_adm
             session.add(user)
             session.commit()
 
-            return {"status": "success", "message": "New user created successfully"}, 200
+            return HTTPRequest(
+               status=200,
+               message='New user created successfully'
+            )
 
     except Exception as e:
         logger.error(f"Unexpected error while creating a new user: {e}", exc_info=True)

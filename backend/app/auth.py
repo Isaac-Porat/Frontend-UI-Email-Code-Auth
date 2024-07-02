@@ -7,7 +7,7 @@ from fastapi import Depends, HTTPException, status, APIRouter
 from passlib.context import CryptContext
 from models import UserModel, VerificationCodeModel
 from database import engine
-from schemas import UserUpdate, UserSchema, VerifyCodeResponse, Token, ForgotPasswordRequest, UpdatePasswordRequest
+from schemas import UserUpdate, UserSchema, VerifyCodeResponse, Token, ForgotPasswordRequest, UpdatePasswordRequest, HTTPRequest
 from auth_utils import get_password_hash, create_access_token, send_verification_email, get_current_user
 
 load_dotenv()
@@ -46,7 +46,10 @@ async def register_user(user: UserSchema):
 
             send_verification_email(user.email, verification_code)
 
-            return {"status": 201, "message": "Please check your email for the verification code."}
+            return HTTPRequest(
+                status=201,
+                message="Please check your email for the verification code"
+            )
 
         except HTTPException as e:
             raise HTTPException(
@@ -83,6 +86,7 @@ async def verify_verification_code(data: VerifyCodeResponse) -> Token:
             session.commit()
 
             access_token = create_access_token(data={"sub": user.email})
+
             return Token(access_token=access_token, token_type="bearer")
 
     except HTTPException as e:
@@ -222,7 +226,10 @@ async def update_user_data(user_update: UserUpdate, token: str = Depends(get_cur
                 password="**********"
             )
 
-            return {"message": "User updated successfully", "user": updated_user}
+            return HTTPRequest(
+                status=201,
+                message=updated_user
+            )
 
     except HTTPException as e:
         raise e
@@ -252,8 +259,6 @@ async def forgot_password(request: ForgotPasswordRequest):
             session.commit()
 
             response = send_verification_email(user.email, verification_code)
-
-            logger.warning(response)
 
             return response
 
@@ -285,7 +290,10 @@ async def update_password(request: UpdatePasswordRequest, token: str = Depends(g
             session.commit()
             session.refresh(user)
 
-            return {"status": 201, "message": "User password updated successfully"}
+            return HTTPRequest(
+                status=201,
+                message='User password updated successfully'
+            )
 
     except HTTPException as e:
         raise e

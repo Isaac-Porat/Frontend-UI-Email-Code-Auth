@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from schemas import HTTPRequest
 
 load_dotenv()
 
@@ -72,10 +73,18 @@ def send_verification_email(email: str, code: str):
             server.starttls()
             server.login(sender_email, password)
             server.sendmail(sender_email, email, message.as_string())
-            return {"status": 200, "message": "Verification email sent successfully"}
+
+            return HTTPRequest(
+                status=200,
+                message="Verification email sent successfully"
+            )
+
     except Exception as e:
         logger.warning(f"Error sending email: {str(e)}")
-        return {"status": 500, "message": "Error sending verification email"}
+        return HTTPRequest(
+            status=500,
+            message="Error sending verification email"
+        )
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     with Session(engine) as session:
