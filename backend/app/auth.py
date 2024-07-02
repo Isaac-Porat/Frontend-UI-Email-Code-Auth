@@ -7,7 +7,7 @@ from fastapi import Depends, HTTPException, status, APIRouter
 from passlib.context import CryptContext
 from models import UserModel, VerificationCodeModel
 from database import engine
-from schemas import UserUpdate, UserSchema, VerifyCodeResponse, Token
+from schemas import UserUpdate, UserSchema, VerifyCodeResponse, Token, ForgotPasswordRequest, UpdatePasswordRequest
 from auth_utils import get_password_hash, create_access_token, send_verification_email, get_current_user
 
 load_dotenv()
@@ -223,6 +223,69 @@ async def update_user_data(user_update: UserUpdate, token: str = Depends(get_cur
             )
 
             return {"message": "User updated successfully", "user": updated_user}
+
+    except HTTPException as e:
+        raise e
+
+    except Exception as e:
+        logger.error(f"Unexpected error during user update: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An unexpected error occurred")
+
+@router.post('/forgot-password')
+async def forgot_password(request: ForgotPasswordRequest):
+    email = request.email
+    with Session(engine) as session:
+        try:
+            user = session.query(UserModel).filter(UserModel.email == email).first()
+
+            if user is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="User not found"
+                )
+
+            verification_code = secrets.token_hex(3)
+            expiration_time = datetime.utcnow() + timedelta(minutes=15)
+
+            new_code = VerificationCodeModel(user_id=user.id, code=verification_code, expires_at=expiration_time)
+            session.add(new_code)
+            session.commit()
+
+            response = send_verification_email(user.email, verification_code)
+
+            logger.warning(response)
+
+            return response
+
+        except HTTPException as e:
+            raise e
+
+        except Exception as e:
+            logger.error(f"Unexpected error while fetching user data: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="An unexpected error occurred while fetching user data"
+            )
+
+@router.post('/update-password')
+async def update_password(request: UpdatePasswordRequest, token: str = Depends(get_current_user)):
+    password = request.password
+    try:
+        with Session(engine) as session:
+            user = session.query(UserModel).filter(UserModel.email == token).first()
+            if not user:
+                raise HTTPException(
+                    status_code=404,
+                    detail="User not found"
+                )
+
+            if password:
+                user.password = get_password_hash(password)
+
+            session.commit()
+            session.refresh(user)
+
+            return {"status": 201, "message": "User password updated successfully"}
 
     except HTTPException as e:
         raise e
