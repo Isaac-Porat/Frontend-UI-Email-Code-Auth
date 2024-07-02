@@ -18,9 +18,9 @@ const registerSchema = z.object({
 
 const Auth = () => {
   const [isRegistering, setIsRegistering] = useState(true);
-  const navigate = useNavigate();
   const { login, register, verificationEmail } = useAuth();
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const navigate = useNavigate();
 
   const form = useForm({
     resolver: zodResolver(registerSchema),
