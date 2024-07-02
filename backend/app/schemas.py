@@ -21,3 +21,7 @@ class ForgotPasswordRequest(BaseModel):
 
 class UpdatePasswordRequest(BaseModel):
     password: str
+
+class HTTPRequest(BaseModel):
+    status: int
+    message: str
