@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
 const AuthContext = createContext(null);
@@ -76,8 +76,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   const verifyEmail = async (verificationData) => {
+    console.log(verificationData)
     try {
-      const response = await api.post('/verify-verification-code', verificationData);
+      const response = await api.post('/verify-verification-code', JSON.stringify(verificationData));
       const { access_token } = response.data;
       localStorage.setItem('accessToken', access_token);
       const userData = await fetchUserDetails(access_token);
@@ -91,7 +92,7 @@ export const AuthProvider = ({ children }) => {
 
   const updateUserData = async (userData) => {
     try {
-      const response = await axios.put('/update-user', userData, {
+      const response = await api.put('/update-user', userData, {
         headers: { Authorization: `Bearer ${user.token}` }
       });
       const updatedUserData = response.data.username;
@@ -107,6 +108,36 @@ export const AuthProvider = ({ children }) => {
       throw error;
     }
   };
+
+  const forgotPassword = async (email) => {
+    try {
+      const response = await api.post('/forgot-password', JSON.stringify(email));
+      console.log(response)
+      return {
+        statusCode: response.status,
+        statusMessage: response.message
+      }
+    } catch (error) {
+      console.error('Error sending verification code for forgot password:', error);
+    }
+  }
+
+  const updatePassword = async (password) => {
+    try {
+      const response = await api.post('/update-password', JSON.stringify(password), {
+        headers: { Authorization: `Bearer ${user.token}`}
+      })
+
+      return {
+        statusCode: response.status,
+        statusMessage: response.message
+      }
+
+    } catch (error) {
+      console.error('Error updating password:', error)
+    }
+  }
+
 
   const logout = useCallback(() => {
     localStorage.removeItem('accessToken');
@@ -124,6 +155,8 @@ export const AuthProvider = ({ children }) => {
     verificationEmail,
     updateUserData,
     refreshUserData: fetchUserDetails,
+    updatePassword,
+    forgotPassword
   };
 
   return (
