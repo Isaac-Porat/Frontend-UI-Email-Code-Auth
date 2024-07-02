@@ -15,3 +15,9 @@ class UserUpdate(BaseModel):
 class VerifyCodeResponse(BaseModel):
     email: str
     code: str
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class UpdatePasswordRequest(BaseModel):
+    password: str
